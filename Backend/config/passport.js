@@ -20,8 +20,13 @@ passport.use(
             name: profile.displayName,
             email: profile.emails[0].value,
             profilePic: profile.photos[0].value,
+            googleAccessToken:accessToken,
+            googleRefreshToken:refreshToken
           });
           await user.save();
+        }
+        else {
+          user.googleAccessToken = accessToken; // Update existing user token
         }
 
         // Generate JWT Token

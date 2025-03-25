@@ -2,12 +2,20 @@ const express = require("express");
 const Letter = require("../models/letter");
 const isAuthenticated = require("../middleware/authMiddleware"); // Import middleware
 const router = express.Router();
+const { uploadToDrive } = require("../services/googleDrive");
+const User = require("../models/User");
+const { default: mongoose } = require("mongoose");
 
 // 📝 **Create a new letter**
 router.post("/create", isAuthenticated, async (req, res) => {
+  console.log("User before try block:", req.user); // Debugging outside try
   try {
-    const { title, content } = req.body;
+    console.log("User inside try block:", req.user); // Debugging inside try
+    if (!req.user || !req.user.id) {
+      return res.status(400).json({ error: "User authentication failed" });
+    }
 
+    const { title, content } = req.body;
     const newLetter = new Letter({
       userId: req.user.id, // User ID from JWT token
       title,
@@ -17,9 +25,11 @@ router.post("/create", isAuthenticated, async (req, res) => {
     await newLetter.save();
     res.status(201).json(newLetter);
   } catch (error) {
+    console.error("Error creating letter:", error); // Log actual error
     res.status(500).json({ error: "Error creating letter" });
   }
 });
+
 
 // 📜 **Fetch all letters for the authenticated user**
 router.get("/my-letters", isAuthenticated, async (req, res) => {
@@ -68,5 +78,41 @@ router.delete("/delete/:id", isAuthenticated, async (req, res) => {
     res.status(500).json({ error: "Error deleting letter" });
   }
 });
+
+router.post("/save-to-drive",isAuthenticated, async (req, res) => {
+  try {
+// let authToken=req.headers.authorization?.split(" ")[1];
+    const { title, content } = req.body;
+
+    if (  !title || !content) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    const userId = req.user.id;
+    // console.log("Is userId an ObjectId?", mongoose.Types.ObjectId.isValid(req.user.id));
+    // console.log("user id",`ObjectId(`,this.toString(userId),`)`)
+    // const validUserId =new  mongoose.Types.ObjectId(userId);
+    // console.log("valid id",validUserId)
+    // console.log("Is userId an ObjectId?", mongoose.Types.ObjectId.isValid(req.user.id));
+    const allUsers = await User.find();
+    console.log("All Users:", allUsers);
+    const validUserId = new mongoose.Types.ObjectId(userId.toString());
+    console.log("Valid User ID:", validUserId);
+    const user = await User.find({ _id: validUserId });
+    console.log(user);
+    console.log("access",user[0].googleAccessToken)
+    if (!user || !user[0].googleAccessToken) {
+      return res.status(401).json({ error: "Google authentication required" });
+    }
+ 
+
+    const googleAccessToken = user[0].googleAccessToken;
+    const fileId = await uploadToDrive(googleAccessToken, title, content);
+
+    res.status(200).json({ message: "File uploaded successfully", fileId });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to upload file to Google Drive" });
+  }
+});
+
 
 module.exports = router;

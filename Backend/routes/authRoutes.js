@@ -18,6 +18,7 @@ router.get(
     res.cookie("token", token, { httpOnly: true, secure: false }); // Secure should be true in production
     res.redirect(`http://localhost:5173?token=${token}`);
   }
+  
 );
 
 // Logout route
