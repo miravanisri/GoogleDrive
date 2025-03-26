@@ -10,11 +10,14 @@ require("./config/passport"); // Import passport config
 require("./config/db"); // Import DB connection
 const letterRoutes = require("./routes/letterRoutes");
 const app = express();
+const SCOPE = ['https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/drive.file']
+
 
 // Middleware
 app.use(express.json());
 app.use("/letters", letterRoutes); // Register letter routes
 app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+
 app.use(express.json());
 app.use(
   session({

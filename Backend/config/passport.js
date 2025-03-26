@@ -9,6 +9,15 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: "http://localhost:5000/auth/google/callback",
+      scope: [
+        "profile",
+        "email",
+        "https://www.googleapis.com/auth/drive.file",  // Grants file creation permission
+        "https://www.googleapis.com/auth/drive.appdata", // Grants access to app-specific data
+        "https://www.googleapis.com/auth/drive" // Full access to Drive (use carefully)
+      ],
+      accessType: "offline", // Ensures we get a refresh token
+      prompt: "consent", // Forces re-authentication to get new permissions
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -20,14 +29,17 @@ passport.use(
             name: profile.displayName,
             email: profile.emails[0].value,
             profilePic: profile.photos[0].value,
-            googleAccessToken:accessToken,
-            googleRefreshToken:refreshToken
+            googleAccessToken: accessToken,
+            googleRefreshToken: refreshToken // Save refreshToken for future use
           });
-          await user.save();
+        } else {
+          user.googleAccessToken = accessToken;
+          if (refreshToken) {
+            user.googleRefreshToken = refreshToken; // Update refreshToken only if provided
+          }
         }
-        else {
-          user.googleAccessToken = accessToken; // Update existing user token
-        }
+
+        await user.save();
 
         // Generate JWT Token
         const token = jwt.sign(
@@ -36,7 +48,7 @@ passport.use(
           { expiresIn: "7d" }
         );
 
-        user.token = token; // Attach token to user
+        user.token = token;
 
         return done(null, user);
       } catch (error) {
@@ -45,6 +57,7 @@ passport.use(
     }
   )
 );
+
 
 // Serialize user
 passport.serializeUser((user, done) => {

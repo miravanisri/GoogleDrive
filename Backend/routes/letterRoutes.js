@@ -2,7 +2,9 @@ const express = require("express");
 const Letter = require("../models/letter");
 const isAuthenticated = require("../middleware/authMiddleware"); // Import middleware
 const router = express.Router();
-const { uploadToDrive } = require("../services/googleDrive");
+const { uploadToDrive} = require("../services/googleDrive");
+const { google } = require("googleapis");
+
 const User = require("../models/User");
 const { default: mongoose } = require("mongoose");
 
@@ -79,6 +81,26 @@ router.delete("/delete/:id", isAuthenticated, async (req, res) => {
   }
 });
 
+async function checkDrivePermissions(accessToken) {
+  try {
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
+
+    const drive = google.drive({ version: "v3", auth: oauth2Client });
+
+    // Try listing files to check if the token has valid permissions
+    await drive.files.list({ pageSize: 1 });
+    console.log("✅ Token has Google Drive permissions.");
+    return true;
+  } catch (error) {
+    console.error("❌ Google Drive permission issue:", error.message);
+    return false;
+  }
+}
+
+
+
+
 router.post("/save-to-drive",isAuthenticated, async (req, res) => {
   try {
 // let authToken=req.headers.authorization?.split(" ")[1];
@@ -106,6 +128,10 @@ router.post("/save-to-drive",isAuthenticated, async (req, res) => {
  
 
     const googleAccessToken = user[0].googleAccessToken;
+    if (!(await checkDrivePermissions(googleAccessToken))) {
+      return res.status(403).json({ error: "Invalid or missing Google Drive permissions" });
+    }
+    
     const fileId = await uploadToDrive(googleAccessToken, title, content);
 
     res.status(200).json({ message: "File uploaded successfully", fileId });

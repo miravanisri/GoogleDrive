@@ -6,11 +6,16 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_SECRET,
   "http://localhost:5000/auth/google/callback"
 );
+
+
+
 async function verifyToken(authToken) {
   if (!authToken) {
     console.error("❌ Error: Missing access token.");
     throw new Error("Missing access token");
   }
+
+ 
 
   const oauth2Client = new google.auth.OAuth2();
   oauth2Client.setCredentials({ access_token: authToken });
